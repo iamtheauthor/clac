@@ -1,0 +1,10 @@
+**/.*
+/__pycache__
+*.py[cod]
+*.log
+/.logs
+/docs/build
+*.egg-info
+Pipfile.lock
+
+!.gitignore
