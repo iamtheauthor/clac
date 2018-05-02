@@ -22,6 +22,7 @@ setup(
     url='https://github.com/iamtheauthor/clac',
     author='Wesley Van Melle',
     author_email='van.melle.wes@gmail.com',
+    license='MIT',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -33,6 +34,7 @@ setup(
     ],
     keywords='configuration environment',
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    python_requires='~=3.6',
     install_requires=[],
     extras_require={
         'test': ['pytest'],
