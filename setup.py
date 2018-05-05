@@ -30,7 +30,7 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
-        'Topic :: Software Development :: Configuration',
+        'Topic :: Software Development :: Libraries',
     ],
     keywords='configuration environment',
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),

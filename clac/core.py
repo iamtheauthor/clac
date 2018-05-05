@@ -1,14 +1,24 @@
 """Default configuration Plugin for shall framework."""
-from collections import OrderedDict
+from abc import ABCMeta, abstractproperty
+from collections import OrderedDict, Mapping
 from typing import Any, Type, Set, Tuple
 
 from .exceptions import NoConfigKey, MissingLayer
 
-_RAISE = object()
+RAISE = object()
 
 
-class BaseConfigLayer:
+class BaseConfigLayer(Mapping, metaclass=ABCMeta):
     """Abstract Base class for ConfigLayer Implementation
+
+    This class cannot be used directly, and will raise ``TypeError`` if
+    instantiated.  Rather, it is meant to be subclassed to perform its own
+    application-specific configuration handling.  For example, a subclass named
+    ``ConfLayer`` might be created to read UNIX-style configuration files.
+
+    .. important:: Because this class is based off of the stdlib abc.Mapping
+        abstract class, there are abstract methods not defined in this class
+        which must still be defined by subclasses
 
     :param name: The qualified name of the config layer instance.  Will be
         used to look up the specified layer by the CLAC.  This name should
@@ -16,37 +26,31 @@ class BaseConfigLayer:
         instantiation is undefined.
     """
     def __init__(self, name: str) -> None:
-        self.name: str = name
+        self._layer_name: str = name
 
-    def get(self, key: str, default=_RAISE) -> Any:
-        """Gets the value for the specified ``key``"""
-        er_msg = ' '.join([
-            "get() has not been implemented for class:",
-            f"{self.__class__.__name__}"
-        ])
-        raise NotImplementedError(er_msg)
+    def get(self, key: str, default=None) -> Any:
+        """Gets the value for the specified ``key``
+
+        Returns ``default`` if ``key`` is not found.
+        """
+        # ! We must override this method, since we need to cover LookupError
+        # ! specifically, rather than KeyError.
+
+        try:
+            return self[key]
+        except LookupError:
+            return default
 
     @property
+    def name(self):
+        return self._layer_name
+
+    @property
+    @abstractproperty
     def names(self):
         """Returns the full list of keys in the Layer"""
         er_msg = ' '.join([
             "names property has not been implemented for class:",
-            f"{self.__class__.__name__}"
-        ])
-        raise NotImplementedError(er_msg)
-
-    def __getitem__(self, key):
-        """Returns the full list of keys in the Layer"""
-        er_msg = ' '.join([
-            "__getitem__() has not been implemented for class:",
-            f"{self.__class__.__name__}"
-        ])
-        raise NotImplementedError(er_msg)
-
-    def __contains__(self, x) -> bool:
-        """Returns True if key exists in lookup, False otherwise"""
-        er_msg = ' '.join([
-            "__contains__() has not been implemented for class:",
             f"{self.__class__.__name__}"
         ])
         raise NotImplementedError(er_msg)
@@ -80,46 +84,53 @@ class CLAC:
             key: str,
             default: Any = None,
             layer_name: str = None,
-            coerce: Type = None
+            callback: Type = None
             ) -> Any:
         """Gets values from config layers according to ``key``.
 
-        :param key:         The name of the desired key.
-        :param default:     The uncoerced value to return if the key is not
-            found. Defaults to None.
-        :param layer_name:  The name of the layer to search.  If
-            ``layer_name`` is not specified, all layers will be scanned in
-            FIFO order. Defaults to ``None``.
-        :param coerce:   If not None, when get recieves a value, will cast
+        Returns ``default`` if value is not found or LookupError is raised.
+
+        If ``layer_name`` is specified, the method will perform all of the same
+        actions, but only against the layer with the specified name.  Must be
+        a str or None.  Defaults to None.
+
+        If ``callback`` is specified, the method will pass the retrieved value
+        to the callback, and return the result.  If ``callback`` is None, the
+        original result is returned as-is.
+
+        .. warning:: If the value is not found, ``callback`` will not be
+           executed on the default value.  Applications should provide
+           complete and prepared default values to the method.
+
+        :param coerce:  If not None, when get recieves a value, will cast
             to ``coerce``. Does not coerce ``default`` value if returned.
             Defaults to ``None``.
-        :raises: :class:`MissingLayer` if layer_name is specified but no layer
+        :raises MissingLayer: if ``layer_name`` is specified but no layer
             with that name has been added.
-        :return: The value retrieved from the config layers.
-        """
-        if layer_name:
-            if layer_name not in self._lookup:
-                raise MissingLayer(layer_name)
-            try:
-                rv = self._get_layer(layer_name).get(key)
-            except LookupError:
-                return default
-            if coerce:
-                rv = coerce(rv)
-            return rv
+        :return: The value retrieved from the config layers, or ``default``
+            if no entry was found.
 
-        # * Search All layers
-        # Should catch leaks from layer name being specified.
-        assert not layer_name, 'layer_name was specified and not caught'
-        # Placeholder for later functionality.
+        .. note:: If an exception is desired instead of a default value,
+            ``__getitem__`` syntax (``clac_instance[key]``) should be used
+            instead.  This will raise a ``NoConfigKey`` exception.  However,
+            the ``__getitem__`` syntax does not support additional arguments.
+            This means that only :meth:`get` will support defaults and
+            coercion, and only ``__getitem__`` will support exception
+            bubbling.
+        """
+        if layer_name and layer_name not in self._lookup:
+            raise MissingLayer(layer_name)
+
         assert self._get_mode() == 'FIFO'
 
+        obj = self._get_layer(layer_name) if layer_name else self
+
         try:
-            rv = self[key]
+            rv = obj[key]  # type: ignore
         except LookupError:
             return default
-        if coerce:
-            rv = coerce(rv)
+        if callback:
+            rv = callback(rv)
         return rv
 
     def _get_layer(self, name: str) -> BaseConfigLayer:
@@ -184,20 +195,21 @@ class CLAC:
         else:
             raise NoConfigKey(key)
 
-    def build_lri(self, reverse=False) -> Set[Tuple[str, Any]]:
+    def build_lri(self, key_first=False) -> Set[Tuple[str, Any]]:
         """Returns the Layer Resolution Index (LRI)
 
-        The LRI is a ``set`` of 2-tuples (``name``, ``key``) which are the
-        first layer that a key can be found, and the key itself, respectively.
+        The LRI is a ``set`` of 2-tuples which contain the first layer that a
+        key can be found in, and the key itself.
 
-
+        If ``key_first`` is True, the tuples will be structured as
+        ``(key, name)``.  Default is False: ``(name, key)``
         """
         pairs = [(l.name, set(l.names)) for l in self._lookup.values()]
         name_index: Set[str] = set()
         lri = set()
 
         def rvsd(tup: Tuple[str, str]) -> Tuple[str, str]:
-            if reverse:
+            if key_first:
                 tup = (tup[1], tup[0])
             return tup
 

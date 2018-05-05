@@ -24,8 +24,14 @@ class SimpleLayer(BaseConfigLayer):
     def __getitem__(self, key):
         return self.data[key]
 
-    def __contains__(self, name: str) -> bool:
-        return name in self.data
+    def __contains__(self, key) -> bool:
+        return key in self.data
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __len__(self):
+        return len(self.data)
 
     @property
     def names(self) -> Iterable[str]:
