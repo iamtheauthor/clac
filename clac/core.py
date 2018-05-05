@@ -45,15 +45,10 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
     def name(self):
         return self._layer_name
 
-    @property
     @abstractproperty
     def names(self):
         """Returns the full list of keys in the Layer"""
-        er_msg = ' '.join([
-            "names property has not been implemented for class:",
-            f"{self.__class__.__name__}"
-        ])
-        raise NotImplementedError(er_msg)
+        pass
 
 
 class CLAC:
