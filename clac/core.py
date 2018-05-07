@@ -1,11 +1,16 @@
 """Default configuration Plugin for shall framework."""
 from abc import ABCMeta, abstractproperty
 from collections import OrderedDict, Mapping
-from typing import Any, Type, Set, Tuple
+import enum
+import os
+from typing import Any, Type, Set, Tuple, Optional, Iterator
 
 from .exceptions import NoConfigKey, MissingLayer
 
-RAISE = object()
+
+class DictStructure(enum.Enum):
+    Split = enum.auto()
+    Flat = enum.auto()
 
 
 class BaseConfigLayer(Mapping, metaclass=ABCMeta):
@@ -51,6 +56,104 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
         pass
 
 
+class DictLayer(BaseConfigLayer):
+    """A config layer based on ``dict``."""
+    def __init__(
+        self,
+        name: str,
+        config_dict: Optional[dict] = None,
+        mutable: Optional[bool] = None,
+        dot_strategy: DictStructure = DictStructure.Flat
+    ) -> None:
+
+        super().__init__(name)
+        if not config_dict:
+            config_dict = {}
+        self._config_dict = dict(config_dict)
+
+        # ! Need implemetation plan for dot-structure methods
+        if dot_strategy not in DictStructure:
+            memb = f'{DictStructure.__module__}.{DictStructure.__name__}'
+            msg = f'dot_strategy param must be a member of the {memb} enum.'
+            raise ValueError(msg)
+        self.dot_strategy = dot_strategy
+
+        # TODO: implement mutable logic
+        # ! The 'mutable' field currently does nothing.
+        # # if mutable is None:
+        # #    self.mutable = not config_dict
+        # # else:
+        # #     self.mutable = mutable
+
+    def __getitem__(self, key: str) -> Any:
+        """Returns the value stored by ``key``
+
+        This interface is strategy-aware, and will search the dict according
+        to the strategy.
+        """
+        if self.dot_strategy is DictStructure.Split:
+            return self.__dot_split_get(key)
+        elif self.dot_strategy is DictStructure.Flat:
+            return self._config_dict[key]
+        return self._config_dict[key]
+
+    def __dot_split_get(self, key_str: str) -> Any:
+        keylist = key_str.split('.')
+
+        current_val = self._config_dict
+        for keypart in keylist:
+            try:
+                current_val = current_val[keypart]
+            except LookupError:
+                raise NoConfigKey(key_str) from None
+        return current_val
+
+    def __iter__(self) -> Iterator[str]:
+        """Returns an iterator over :meth:`names`"""
+        return iter(self.names)
+
+    def __len__(self) -> int:
+        """Returns the length of the :meth:`names`"""
+        return len(self.names)
+
+    def __dot_split_keys(self):
+        def has_subkey(value):
+            return hasattr(value, 'keys')
+
+        def get_subkeys(dct, context=''):
+            keyset = set()
+            for key in dct:
+                full_name = f'{context}.{key}' if context else key
+                val = dct[key]
+                if not has_subkey(val):
+                    keyset.add(full_name)
+                    continue
+                keyset |= get_subkeys(val, full_name)
+            return keyset
+
+        return get_subkeys(self._config_dict)
+
+    @property
+    def names(self) -> Set[str]:
+        """Returns a strategy-aware set of valid keys"""
+        if self.dot_strategy is DictStructure.Split:
+            return self.__dot_split_keys()
+        elif self.dot_strategy is DictStructure.Flat:
+            return set(self._config_dict.keys())
+        else:
+            raise ValueError('dot_strategy is not a known type')
+
+
+class EnvLayer(DictLayer):
+    def __init__(self, name, sep='_'):
+        super().__init__(name, os.environ, False)
+        self._separator = sep
+
+    def __getitem__(self, key):
+        transkey = key.replace('_', '.')
+        return super()[transkey]
+
+
 class CLAC:
     """Clac Layerizes Application Configuraton.
 
@@ -65,6 +168,9 @@ class CLAC:
         return 'FIFO'
 
     def __getitem__(self, key: str) -> Any:
+        if not key:
+            raise ValueError('key param must be non-empty string.')
+
         for layer in self._lookup.values():
             try:
                 rv = layer[key]
