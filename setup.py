@@ -21,7 +21,7 @@ lint_requires = ['pylint', 'mypy']
 
 setup(
     name='clac',
-    version=vr.__version__,
+    version=vr.__release__,
     description='CLAC Layerizes Application Configuration',
     long_description=__long_description__,
     url='https://github.com/scruffystuffs/clac',
