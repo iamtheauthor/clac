@@ -14,12 +14,17 @@ __here__ = path.abspath(path.dirname(__file__))
 with codecs.open(path.join(__here__, 'README.md'), encoding='utf-8') as f:
     __long_description__ = f.read()
 
+doc_requires = ['sphinx', 'sphinx_rtd_theme']
+test_requires = ['pytest', 'pytest-cov']
+coverage_requires = ['coverage', 'codecov']
+lint_requires = ['pylint', 'mypy']
+
 setup(
     name='clac',
     version=vr.__version__,
     description='CLAC Layerizes Application Configuration',
     long_description=__long_description__,
-    url='https://github.com/iamtheauthor/clac',
+    url='https://github.com/scruffystuffs/clac',
     author='Wesley Van Melle',
     author_email='van.melle.wes@gmail.com',
     license='MIT',
@@ -30,6 +35,7 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries',
     ],
     keywords='configuration environment',
@@ -37,7 +43,11 @@ setup(
     python_requires='~=3.6',
     install_requires=[],
     extras_require={
-        'test': ['pytest'],
+        'fulldev': test_requires + doc_requires + lint_requires + coverage_requires,
+        'test': test_requires,
+        'docs': doc_requires,
+        'lint': lint_requires,
+        'cov': coverage_requires,
     },
     zip_safe=False,
 )

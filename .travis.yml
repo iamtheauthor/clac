@@ -1,0 +1,13 @@
+language: python
+sudo: required
+dist: xenial
+python: "3.7"
+cache: pip
+install:
+  - pip install -e .[fulldev]
+script:
+  - pytest --cov pedestal tests
+  - pylint pedestal
+  - mypy pedestal
+after_success:
+  - codecov
