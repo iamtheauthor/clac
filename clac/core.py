@@ -1,11 +1,31 @@
-"""Default configuration Plugin for shall framework."""
-from abc import ABCMeta, abstractproperty
-from collections import OrderedDict, Mapping
+# Copyright 2018 Wesley Van Melle <van.melle.wes@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+# of the Software, and to permit persons to whom the Software is furnished to do
+# so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""Default configuration Plugin for the pedestal framework."""
+from abc import ABCMeta, abstractmethod
+from collections.abc import Mapping
 import enum
 import os
-from typing import Any, Type, Set, Tuple, Optional, Iterator
+from typing import Any, Type, Set, Tuple, Optional, Iterator, Dict
 
-from .exceptions import NoConfigKey, MissingLayer
+from .exceptions import NoConfigKey, MissingLayer, ImmutableLayer
 
 
 class DictStructure(enum.Enum):
@@ -27,11 +47,15 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
 
     :param name: The qualified name of the config layer instance.  Will be
         used to look up the specified layer by the CLAC.  This name should
-        not be changed, and any behavior caused by changing it after
-        instantiation is undefined.
+        not be changed after instantiation.
     """
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, mutable: bool = False) -> None:
         self._layer_name: str = name
+        self._mutable = mutable
+        if not self.mutable:
+            # Remove the functions that are not needed
+            del self.setdefault
+            del self.__setitem__
 
     def get(self, key: str, default=None) -> Any:
         """Gets the value for the specified ``key``
@@ -46,27 +70,51 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
         except LookupError:
             return default
 
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        self.assert_mutable()
+        try:
+            return self[key]
+        except LookupError:
+            self[key] = default
+            return default
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.assert_mutable()
+        raise NotImplementedError(f"__setitem__ is not implemented for class: {self.__class__.__name__}")
+
+    def assert_mutable(self):
+        if not self.mutable:
+            raise ImmutableLayer(f"Attempted modification of immutable layer: {self._layer_name}")
+
+    @property
+    def mutable(self):
+        return self._mutable
+
     @property
     def name(self):
         return self._layer_name
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def names(self):
         """Returns the full list of keys in the Layer"""
         pass
 
 
+_GET = object
+
+
 class DictLayer(BaseConfigLayer):
     """A config layer based on ``dict``."""
     def __init__(
-        self,
-        name: str,
-        config_dict: Optional[dict] = None,
-        mutable: Optional[bool] = None,
-        dot_strategy: DictStructure = DictStructure.Flat
+            self,
+            name: str,
+            config_dict: Optional[dict] = None,
+            mutable: bool = False,
+            dot_strategy: DictStructure = DictStructure.Flat
     ) -> None:
 
-        super().__init__(name)
+        super().__init__(name, mutable)
         if not config_dict:
             config_dict = {}
         self._config_dict = dict(config_dict)
@@ -78,13 +126,6 @@ class DictLayer(BaseConfigLayer):
             raise ValueError(msg)
         self.dot_strategy = dot_strategy
 
-        # TODO: implement mutable logic
-        # ! The 'mutable' field currently does nothing.
-        # # if mutable is None:
-        # #    self.mutable = not config_dict
-        # # else:
-        # #     self.mutable = mutable
-
     def __getitem__(self, key: str) -> Any:
         """Returns the value stored by ``key``
 
@@ -92,13 +133,22 @@ class DictLayer(BaseConfigLayer):
         to the strategy.
         """
         if self.dot_strategy is DictStructure.Split:
-            return self.__dot_split_get(key)
-        elif self.dot_strategy is DictStructure.Flat:
+            return self.__dot_split_operation(key)
+        if self.dot_strategy is DictStructure.Flat:
             return self._config_dict[key]
-        return self._config_dict[key]
+        raise ValueError('dot_strategy is not a known type')
 
-    def __dot_split_get(self, key_str: str) -> Any:
-        keylist = key_str.split('.')
+    def __setitem__(self, key: str, value: Any) -> None:
+        if self.dot_strategy is DictStructure.Split:
+            self.__dot_split_operation(key, value)
+            return None
+        if self.dot_strategy is DictStructure.Flat:
+            self._config_dict[key] = value
+            return None
+        raise ValueError('dot_strategy is not a known type')
+
+    def __dot_split_operation(self, key_str: str, value=_GET) -> Any:
+        *keylist, last_key_part = key_str.split('.')
 
         current_val = self._config_dict
         for keypart in keylist:
@@ -106,7 +156,12 @@ class DictLayer(BaseConfigLayer):
                 current_val = current_val[keypart]
             except LookupError:
                 raise NoConfigKey(key_str) from None
-        return current_val
+
+        if value is _GET:
+            current_val = current_val[last_key_part]
+            return current_val
+        current_val[last_key_part] = value
+        return None
 
     def __iter__(self) -> Iterator[str]:
         """Returns an iterator over :meth:`names`"""
@@ -138,12 +193,12 @@ class DictLayer(BaseConfigLayer):
         """Returns a strategy-aware set of valid keys"""
         if self.dot_strategy is DictStructure.Split:
             return self.__dot_split_keys()
-        elif self.dot_strategy is DictStructure.Flat:
+        if self.dot_strategy is DictStructure.Flat:
             return set(self._config_dict.keys())
-        else:
-            raise ValueError('dot_strategy is not a known type')
+        raise ValueError('dot_strategy is not a known type')
 
 
+# pylint: disable=R0901
 class EnvLayer(DictLayer):
     def __init__(self, name, sep='_'):
         super().__init__(name, os.environ, False)
@@ -151,7 +206,7 @@ class EnvLayer(DictLayer):
 
     def __getitem__(self, key):
         transkey = key.replace('_', '.')
-        return super()[transkey]
+        return super()[transkey]  # pylint: disable=E1136
 
 
 class CLAC:
@@ -160,12 +215,8 @@ class CLAC:
     :meth:`__init__` parameters are the same as :meth:`add_layers`.
     """
     def __init__(self, *layers: BaseConfigLayer) -> None:
-        self._lookup: OrderedDict = OrderedDict()
+        self._lookup: Dict[str, BaseConfigLayer] = dict()
         self.add_layers(*layers)
-
-    def _get_mode(self) -> str:
-        """Placeholder for later functionality"""
-        return 'FIFO'
 
     def __getitem__(self, key: str) -> Any:
         if not key:
@@ -203,9 +254,6 @@ class CLAC:
            executed on the default value.  Applications should provide
            complete and prepared default values to the method.
 
-        :param coerce:  If not None, when get recieves a value, will cast
-            to ``coerce``. Does not coerce ``default`` value if returned.
-            Defaults to ``None``.
         :raises MissingLayer: if ``layer_name`` is specified but no layer
             with that name has been added.
         :return: The value retrieved from the config layers, or ``default``
@@ -222,8 +270,6 @@ class CLAC:
         if layer_name and layer_name not in self._lookup:
             raise MissingLayer(layer_name)
 
-        assert self._get_mode() == 'FIFO'
-
         obj = self._get_layer(layer_name) if layer_name else self
 
         try:
@@ -233,6 +279,20 @@ class CLAC:
         if callback:
             rv = callback(rv)
         return rv
+
+    def __setitem__(self, key: str, value) -> None:
+        # Simpler than the getitem implemetation:
+        # Find the first mutable layer, and then mutate it.
+        for layer in self._lookup.values():
+            if layer.mutable:
+                layer[key] = value
+                return None
+        raise ImmutableLayer("No mutable layers detected")
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        for layer in self._lookup.values():
+            if layer.mutable:
+                return layer.setdefault(key, default)
 
     def _get_layer(self, name: str) -> BaseConfigLayer:
         """Helper function to retrieve layers directly."""
@@ -292,9 +352,8 @@ class CLAC:
             except NoConfigKey:
                 continue
             else:
-                return (layer, rv)
-        else:
-            raise NoConfigKey(key)
+                return layer, rv
+        raise NoConfigKey(key)
 
     def build_lri(self, key_first=False) -> Set[Tuple[str, Any]]:
         """Returns the Layer Resolution Index (LRI)
