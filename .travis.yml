@@ -6,8 +6,8 @@ cache: pip
 install:
   - pip install -e .[fulldev]
 script:
-  - pytest --cov pedestal tests
-  - pylint pedestal
-  - mypy pedestal
+  - pytest --cov clac tests
+  - pylint clac
+  - mypy clac
 after_success:
   - codecov

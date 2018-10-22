@@ -1,8 +1,8 @@
 [run]
 branch = True
-source = pedestal
+source = clac
 omit =
-    pedestal/__version__.py
+    clac/__version__.py
 
 [report]
 exclude_lines =
