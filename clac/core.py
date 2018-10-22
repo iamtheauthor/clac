@@ -29,6 +29,7 @@ from .exceptions import NoConfigKey, MissingLayer, ImmutableLayer
 
 
 class DictStructure(enum.Enum):
+    """Enum for :class:`DictLayer` structuring strategy."""
     Split = enum.auto()
     Flat = enum.auto()
 
@@ -52,10 +53,6 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
     def __init__(self, name: str, mutable: bool = False) -> None:
         self._layer_name: str = name
         self._mutable = mutable
-        if not self.mutable:
-            # Remove the functions that are not needed
-            del self.setdefault
-            del self.__setitem__
 
     def get(self, key: str, default=None) -> Any:
         """Gets the value for the specified ``key``
@@ -71,6 +68,11 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
             return default
 
     def setdefault(self, key: str, default: Any = None) -> Any:
+        """If ``key`` is in the lookup, return its value.
+
+        If ``key`` is not in the lookup, insert key with a value of
+        ``default`` and return ``default``. ``default`` defaults to ``None``.
+        """
         self.assert_mutable()
         try:
             return self[key]
@@ -80,18 +82,36 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
 
     def __setitem__(self, key: str, value: Any) -> None:
         self.assert_mutable()
-        raise NotImplementedError(f"__setitem__ is not implemented for class: {self.__class__.__name__}")
+        raise NotImplementedError(
+            f"__setitem__ is not implemented for class: {self.__class__.__name__}"
+        )
 
     def assert_mutable(self):
+        """Raises :class:`ImmutableLayer` if layer is not mutable."""
         if not self.mutable:
-            raise ImmutableLayer(f"Attempted modification of immutable layer: {self._layer_name}")
+            raise ImmutableLayer(
+                f"Attempted modification of immutable layer: {self._layer_name}"
+            )
 
     @property
     def mutable(self):
+        """Whether the layer instance is mutable or not.
+
+        This value is checked before all internal ``set``-style calls.  Any
+        method which overrides :meth:`__setitem__` or :meth:`setdefault` must
+        manually perform the check by calling :meth:`self.assert_mutable` with
+        no arguments.
+        """
         return self._mutable
 
     @property
     def name(self):
+        """The name of the layer.
+
+        The :class:`CLAC` instance will use this name as a lookup key for all
+        layer-specific operations.  This will have no effect on non-specific
+        ``get`` and ``set`` -type calls.
+        """
         return self._layer_name
 
     @property
@@ -139,6 +159,7 @@ class DictLayer(BaseConfigLayer):
         raise ValueError('dot_strategy is not a known type')
 
     def __setitem__(self, key: str, value: Any) -> None:
+        self.assert_mutable()
         if self.dot_strategy is DictStructure.Split:
             self.__dot_split_operation(key, value)
             return None
@@ -200,6 +221,7 @@ class DictLayer(BaseConfigLayer):
 
 # pylint: disable=R0901
 class EnvLayer(DictLayer):
+    """A :class:`DictLayer` implemetation for reading environment variables."""
     def __init__(self, name, sep='_'):
         super().__init__(name, os.environ, False)
         self._separator = sep
@@ -287,12 +309,16 @@ class CLAC:
             if layer.mutable:
                 layer[key] = value
                 return None
+
         raise ImmutableLayer("No mutable layers detected")
 
     def setdefault(self, key: str, default: Any = None) -> Any:
+        """Call :meth:`BaseConfigLayer.set_default` on the first mutable layer."""
         for layer in self._lookup.values():
             if layer.mutable:
                 return layer.setdefault(key, default)
+
+        raise ImmutableLayer("No mutable layers detected")
 
     def _get_layer(self, name: str) -> BaseConfigLayer:
         """Helper function to retrieve layers directly."""

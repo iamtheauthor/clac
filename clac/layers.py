@@ -31,6 +31,7 @@ _SplitKey = namedtuple('SplitKey', 'section options')
 
 
 class IniLayer(BaseConfigLayer):
+    """.ini file layer"""
     def __init__(
             self,
             name: str,
