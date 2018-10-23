@@ -3,7 +3,7 @@ python:
   pip_install: true
 
 formats:
-  - html
+  - htmlzip
   - pdf
 
 build:
