@@ -1,6 +1,5 @@
-******
-Config
-******
+API Reference
+=============
 
 .. autoclass:: clac.CLAC
    :members:

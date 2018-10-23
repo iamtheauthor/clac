@@ -10,6 +10,7 @@ Welcome to clac's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   getting-started
    config
 
 Indices and tables
