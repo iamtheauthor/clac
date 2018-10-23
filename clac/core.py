@@ -23,7 +23,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Mapping
 import enum
 import os
-from typing import Any, Type, Set, Tuple, Optional, Iterator, Dict
+from typing import Any, Callable, Set, Tuple, Optional, Iterator, Dict
 
 from .exceptions import NoConfigKey, MissingLayer, ImmutableLayer
 
@@ -121,7 +121,7 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
         pass
 
 
-_GET = object
+_GET = object()
 
 
 class DictLayer(BaseConfigLayer):
@@ -222,17 +222,20 @@ class DictLayer(BaseConfigLayer):
 # pylint: disable=R0901
 class EnvLayer(DictLayer):
     """A :class:`DictLayer` implemetation for reading environment variables."""
-    def __init__(self, name, sep='_'):
+    def __init__(self, name, sep='_', prefix=None):
         super().__init__(name, os.environ, False)
         self._separator = sep
+        self._prefix = prefix
 
     def __getitem__(self, key):
+        if self._prefix:
+            key = f'{self._prefix}.{key}'
         transkey = key.replace('_', '.')
         return super()[transkey]  # pylint: disable=E1136
 
 
 class CLAC:
-    """Clac Layerizes Application Configuraton.
+    """Configuration container/manager.
 
     :meth:`__init__` parameters are the same as :meth:`add_layers`.
     """
@@ -258,7 +261,7 @@ class CLAC:
             key: str,
             default: Any = None,
             layer_name: str = None,
-            callback: Type = None
+            callback: Callable = None
             ) -> Any:
         """Gets values from config layers according to ``key``.
 
