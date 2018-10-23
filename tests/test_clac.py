@@ -18,7 +18,7 @@ class SimpleLayer(BaseConfigLayer):
         super().__init__(name)
         self.data = data
 
-    def get(self, key):
+    def get(self, key, default=None):
         return self.data[key]
 
     def __getitem__(self, key):
@@ -101,7 +101,7 @@ def test_remove_layer(clac_layers):
     assert cfg['beta_secret'] == 'fghij'
     cfg.remove_layer('beta')
     with raises(NoConfigKey):
-        cfg['beta_secret']
+        _ = cfg['beta_secret']
 
 
 def test_add_layer(clac_layers):
@@ -110,7 +110,7 @@ def test_add_layer(clac_layers):
 
     assert cfg['test_key'] == 'test_value_alpha'
     with raises(NoConfigKey):
-        cfg['beta_secret']
+        _ = cfg['beta_secret']
     with raises(MissingLayer):
         cfg.get('test_key', layer_name='beta')
 
@@ -123,32 +123,32 @@ def test_add_layer(clac_layers):
 
 def test_names_property(clac_layers):
     simple_clac = CLAC(*clac_layers)
-    assert set((
+    assert {
         'test_key',
         'alpha_secret',
         'beta_secret',
         'unique',
         'gamma_secret',
-    )) == simple_clac.names
+    } == simple_clac.names
 
 
 def test_build_lri(clac_layers):
     simple_clac = CLAC(*clac_layers)
-    assert simple_clac.build_lri() == set([
+    assert simple_clac.build_lri() == {
         ('alpha', 'test_key'),
         ('alpha', 'alpha_secret'),
         ('alpha', 'unique'),
         ('beta', 'beta_secret'),
         ('gamma', 'gamma_secret'),
-    ])
+    }
 
 
 def test_build_reverse_lri(clac_layers):
     simple_clac = CLAC(*clac_layers)
-    assert simple_clac.build_lri(True) == set([
+    assert simple_clac.build_lri(True) == {
         ('test_key', 'alpha'),
         ('alpha_secret', 'alpha'),
         ('unique', 'alpha'),
         ('beta_secret', 'beta'),
         ('gamma_secret', 'gamma'),
-    ])
+    }
