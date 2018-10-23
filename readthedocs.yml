@@ -1,0 +1,10 @@
+python:
+  version: 3.6
+  pip_install: true
+
+formats:
+  - html
+  - pdf
+
+build:
+  image: latest
