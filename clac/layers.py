@@ -25,7 +25,7 @@ import configparser
 import os
 from typing import Union, Any
 
-from . import BaseConfigLayer  # , NoConfigKey
+from clac.core import BaseConfigLayer  # , NoConfigKey
 
 _SplitKey = namedtuple('SplitKey', 'section options')
 
