@@ -29,7 +29,15 @@ from .exceptions import NoConfigKey, MissingLayer, ImmutableLayer
 
 
 class DictStructure(enum.Enum):
-    """Enum for :class:`DictLayer` structuring strategy."""
+    """Enum for :class:`DictLayer` structuring strategy.
+
+    This enum class exposes two variants:
+
+    - ``Split``
+    - ``Flat``
+
+    See :class:`DictLayer` for more info.
+    """
     Split = enum.auto()
     Flat = enum.auto()
 
@@ -42,13 +50,15 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
     application-specific configuration handling.  For example, a subclass named
     ``ConfLayer`` might be created to read UNIX-style configuration files.
 
-    .. important:: Because this class is based off of the stdlib abc.Mapping
-        abstract class, there are abstract methods not defined in this class
-        which must still be defined by subclasses
+    .. important:: Because this class is based off of the stdlib
+        collections.abc.Mapping abstract class, there are abstract methods not
+        defined in this class which must still be defined by subclasses.
 
     :param name: The qualified name of the config layer instance.  Will be
         used to look up the specified layer by the CLAC.  This name should
         not be changed after instantiation.
+    :param mutable: ``bool`` representing whether the layer allows mutation.
+        Readable using the :meth:`mutable` property.
     """
     def __init__(self, name: str, mutable: bool = False) -> None:
         self._layer_name: str = name
@@ -125,7 +135,57 @@ _GET = object()
 
 
 class DictLayer(BaseConfigLayer):
-    """A config layer based on ``dict``."""
+    """A config layer based on the python ``dict`` type.
+
+    ``name``
+        Behaves the same as all other layers.  See :class:`BaseConfigLayer`
+        for more details.
+
+    ``config_dict``
+        An optional mapping object which contains the initial state of the
+        configuration layer.  If non-truthy, ``mutable`` must be truthy.  If
+        both are non-truthy, ``ValueError`` is raised.
+
+        .. note:: Any truthy ``config_dict`` parameter will be passed to
+            the ``dict()`` constructor.  This allows for a sequence of
+            key-value pairs to be passed, but may interfere with other mapping
+            types.
+
+    ``mutable``
+        A boolean representing whether the layer should allow mutation.  If
+        non-truthy, ``config_dict`` must be truthy.  If both are non-truthy,
+        ``ValueError`` is raised.
+
+    ``dot_strategy``
+        One of the variants of the :class:`DictStructure` enum. Defaults to
+        :attr:`DictStructure.Flat`.
+
+        :attr:`DictStructure.Split` will assume a nested dict structure.  Keys
+            will be split by the ``.`` character.
+
+        :attr:`DictStructure.Flat` will assume a flat dict structure. Keys are
+            not modified before querying the underlying dict.
+
+        This example illustrates both usages
+
+        .. code-block:: python
+
+           split = {
+               'a': {
+                   'b': {
+                       'c': 'd'
+                   }
+               }
+           }
+
+           flat = {'a.b.c': 'd')
+
+           layer1 = DictLayer('name', split, dot_strategy=DictStructure.Split)
+           assert layer1['a.b.c'] == 'd'
+
+           layer2 = DictLayer('name', flat, dot_strategy=DictStructure.Flat)
+           assert layer2['a.b.c'] == 'd'
+    """
     def __init__(
             self,
             name: str,
@@ -136,10 +196,11 @@ class DictLayer(BaseConfigLayer):
 
         super().__init__(name, mutable)
         if not config_dict:
+            if not self.mutable:
+                raise ValueError("config_dict cannot be empty for an immutable layer.")
             config_dict = {}
         self._config_dict = dict(config_dict)
 
-        # ! Need implemetation plan for dot-structure methods
         if dot_strategy not in DictStructure:
             memb = f'{DictStructure.__module__}.{DictStructure.__name__}'
             msg = f'dot_strategy param must be a member of the {memb} enum.'

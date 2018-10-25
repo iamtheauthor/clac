@@ -10,3 +10,5 @@ API Reference
 .. autoclass:: clac.DictLayer
    :members:
    :special-members: __iter__ __len__ __getitem__
+
+.. autoclass:: clac.DictStructure
