@@ -254,3 +254,11 @@ def test_bad_layer():
 
     with raises(MissingLayer):
         clac.get('key', layer_name='none')
+
+
+def test_resolve(clac_layers):
+    simple_clac = CLAC(*clac_layers)
+
+    assert simple_clac.resolve('beta_secret') == ('beta', 'fghij')
+    with raises(NoConfigKey):
+        simple_clac.resolve('missing.key')

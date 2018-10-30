@@ -91,7 +91,7 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
             return default
 
     def __setitem__(self, key: str, value: Any) -> None:
-        self.assert_mutable()
+        self.assert_mutable()  # pragma: no cover
         raise NotImplementedError(
             f"__setitem__ is not implemented for class: {self.__class__.__name__}"
         )
@@ -128,7 +128,7 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
     @abstractmethod
     def names(self):
         """Returns the full list of keys in the Layer"""
-        pass
+        pass  # pragma: no cover
 
 
 _GET = object()
@@ -199,7 +199,7 @@ class DictLayer(BaseConfigLayer):
             if not self.mutable:
                 raise ValueError("config_dict cannot be empty for an immutable layer.")
             config_dict = {}
-        assert isinstance(config_dict, Mapping)
+        assert isinstance(config_dict, (dict, Mapping))
         self._config_dict = config_dict
 
         if not isinstance(dot_strategy, DictStructure):
@@ -221,7 +221,7 @@ class DictLayer(BaseConfigLayer):
                 return self._config_dict[key]
             except KeyError:
                 raise NoConfigKey(key) from None
-        raise ValueError('dot_strategy is not a known type')
+        raise ValueError('dot_strategy is not a known type')  # pragma: no cover
 
     def __setitem__(self, key: str, value: Any) -> None:
         self.assert_mutable()
@@ -231,7 +231,7 @@ class DictLayer(BaseConfigLayer):
         if self.dot_strategy is DictStructure.Flat:
             self._config_dict[key] = value
             return None
-        raise ValueError('dot_strategy is not a known type')
+        raise ValueError('dot_strategy is not a known type')  # pragma: no cover
 
     def __dot_split_operation(self, key_str: str, value=_GET) -> Any:
         *keylist, last_key_part = key_str.split('.')
@@ -281,7 +281,7 @@ class DictLayer(BaseConfigLayer):
             return self.__dot_split_keys()
         if self.dot_strategy is DictStructure.Flat:
             return set(self._config_dict.keys())
-        raise ValueError('dot_strategy is not a known type')
+        raise ValueError('dot_strategy is not a known type')  # pragma: no cover
 
 
 # pylint: disable=R0901
@@ -392,7 +392,7 @@ class CLAC:
         """Helper function to retrieve layers directly."""
         try:
             return self._lookup[name]
-        except KeyError:
+        except KeyError:  # pragma: no cover
             raise MissingLayer(name) from None
 
     def add_layers(self, *layers: BaseConfigLayer):
@@ -440,13 +440,15 @@ class CLAC:
         :return: 2-tuple: (layer, value)
         """
 
+        # We have to make a failure object so we know that the get() call
+        # did not find the object.
+        _default = object()
+
         for layer in self._lookup:
-            try:
-                rv = self.get(key, layer_name=layer)
-            except NoConfigKey:
+            rv = self.get(key, _default, layer)
+            if rv is _default:
                 continue
-            else:
-                return layer, rv
+            return layer, rv
         raise NoConfigKey(key)
 
     def build_lri(self, key_first=False) -> Set[Tuple[str, Any]]:
