@@ -1,7 +1,5 @@
 language: python
-sudo: required
-dist: xenial
-python: "3.7"
+python: "3.6"
 cache: pip
 install:
   - pip install -e .[fulldev]
