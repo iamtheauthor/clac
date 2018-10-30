@@ -199,9 +199,10 @@ class DictLayer(BaseConfigLayer):
             if not self.mutable:
                 raise ValueError("config_dict cannot be empty for an immutable layer.")
             config_dict = {}
-        self._config_dict = dict(config_dict)
+        assert isinstance(config_dict, Mapping)
+        self._config_dict = config_dict
 
-        if dot_strategy not in DictStructure:
+        if not isinstance(dot_strategy, DictStructure):
             memb = f'{DictStructure.__module__}.{DictStructure.__name__}'
             msg = f'dot_strategy param must be a member of the {memb} enum.'
             raise ValueError(msg)
@@ -216,7 +217,10 @@ class DictLayer(BaseConfigLayer):
         if self.dot_strategy is DictStructure.Split:
             return self.__dot_split_operation(key)
         if self.dot_strategy is DictStructure.Flat:
-            return self._config_dict[key]
+            try:
+                return self._config_dict[key]
+            except KeyError:
+                raise NoConfigKey(key) from None
         raise ValueError('dot_strategy is not a known type')
 
     def __setitem__(self, key: str, value: Any) -> None:
@@ -291,8 +295,8 @@ class EnvLayer(DictLayer):
     def __getitem__(self, key):
         if self._prefix:
             key = f'{self._prefix}.{key}'
-        transkey = key.replace('_', '.')
-        return super()[transkey]  # pylint: disable=E1136
+        transkey = key.replace('.', self._separator).upper()
+        return super().__getitem__(transkey)
 
 
 class CLAC:

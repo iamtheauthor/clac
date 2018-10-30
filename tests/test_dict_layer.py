@@ -1,6 +1,6 @@
-from pytest import fixture
+from pytest import fixture, raises
 
-from clac import DictLayer, DictStructure
+from clac import DictLayer, DictStructure, NoConfigKey
 
 
 @fixture(name='flat_layer')
@@ -28,6 +28,44 @@ def fixture_dotted_dict_layer():
         },
         dot_strategy=DictStructure.Split
     )
+
+
+def test_blank_mutable():
+    layer = DictLayer('name', mutable=True)
+
+    unique = object()
+    unique2 = object()
+    default = object()
+
+    assert layer.get('new_key', default=default) is default
+    with raises(NoConfigKey):
+        _ = layer['new_key.subkey']
+    assert layer.setdefault('new_key', unique) is unique
+    layer['new_key.subkey'] = unique2
+    assert layer.get('new_key', default=default) is unique
+    assert layer['new_key.subkey'] is unique2
+
+
+def test_mutable_split():
+    layer = DictLayer('name', mutable=True, dot_strategy=DictStructure.Split)
+
+    unique = object()
+    default = object()
+
+    assert layer.get('new_key.subkey', default=default) is default
+    layer.setdefault('new_key', {})
+    assert layer.setdefault('new_key.subkey', unique) is unique
+
+    assert layer['new_key'] == {'subkey': unique}
+
+
+# noinspection PyUnusedLocal
+def test_blank_immutable_error():
+    with raises(ValueError):
+        layer = DictLayer('name')
+    with raises(ValueError):
+        # noinspection PyTypeChecker
+        layer = DictLayer('name', mutable=True, dot_strategy=None)  # type: ignore
 
 
 def test_flat_len_dictlayer(flat_layer):

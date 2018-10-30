@@ -7,19 +7,20 @@ from pytest import raises, fixture
 # sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from clac import (  # noqa: E402
-    CLAC, BaseConfigLayer, NoConfigKey, MissingLayer
+    CLAC, BaseConfigLayer, NoConfigKey, MissingLayer, ImmutableLayer
 )
 
 __here__ = pathlib.Path(__file__).resolve().parent
 
 
 class SimpleLayer(BaseConfigLayer):
-    def __init__(self, name, data):
-        super().__init__(name)
+    def __init__(self, name, data, mutable=False):
+        super().__init__(name, mutable)
         self.data = data
 
-    def get(self, key, default=None):
-        return self.data[key]
+    def __setitem__(self, key, value):
+        self.assert_mutable()
+        self.data[key] = value
 
     def __getitem__(self, key):
         return self.data[key]
@@ -56,6 +57,29 @@ def fixture_clac_layers():
     }
     alpha = SimpleLayer('alpha', alpha_dict)
     beta = SimpleLayer('beta', beta_dict)
+    gamma = SimpleLayer('gamma', gamma_dict)
+
+    yield alpha, beta, gamma
+
+
+@fixture(name='mutable_layers')
+def fixture_mutable_layers():
+    alpha_dict = {
+        'test_key': 'test_value_alpha',
+        'alpha_secret': 'abcde',
+        'unique': '0123456789'
+    }
+    beta_dict = {
+        'test_key': 'test_value_beta',
+        'beta_secret': 'fghij',
+    }
+    gamma_dict = {
+        'test_key': 'test_value_gamma',
+        'beta_secret': 'klmno',
+        'gamma_secret': 'gamma rules!',
+    }
+    alpha = SimpleLayer('alpha', alpha_dict)
+    beta = SimpleLayer('beta', beta_dict, mutable=True)
     gamma = SimpleLayer('gamma', gamma_dict)
 
     yield alpha, beta, gamma
@@ -152,3 +176,81 @@ def test_build_reverse_lri(clac_layers):
         ('beta_secret', 'beta'),
         ('gamma_secret', 'gamma'),
     }
+
+
+def test_get_default(clac_layers):
+    simple_clac = CLAC(*clac_layers)
+    default = object()
+    assert simple_clac.get('missingkey', default=default) is default
+
+
+def test_assert_immutable(clac_layers):
+    simple_clac = CLAC(*clac_layers)
+    with raises(ImmutableLayer):
+        simple_clac['test_key'] = 'hello'
+    with raises(ImmutableLayer):
+        clac_layers[0]['test_key'] = 'Hello'
+    with raises(ImmutableLayer):
+        simple_clac.setdefault('test_key')
+
+
+def test_mutate_existing_key(mutable_layers):
+    mutable_clac = CLAC(*mutable_layers)
+
+    unique = object()
+
+    assert mutable_clac.get('test_key') == 'test_value_alpha'
+    assert mutable_clac.get('test_key', layer_name='beta') == 'test_value_beta'
+    mutable_clac['test_key'] = unique
+    assert mutable_clac.get('test_key') == 'test_value_alpha'
+    assert mutable_clac.get('test_key', layer_name='beta') is unique
+
+
+def test_add_new_key(mutable_layers):
+    mutable_clac = CLAC(*mutable_layers)
+
+    unique = object()
+    default = object()
+
+    assert mutable_clac.get('new_key', default=default) is default
+    assert mutable_clac.get('new_key', layer_name='beta', default=default) is default
+    mutable_clac['new_key'] = unique
+    assert mutable_clac.get('new_key', default=default) is unique
+    assert mutable_clac.get('new_key', layer_name='beta', default=default) is unique
+
+
+def test_setdefault(mutable_layers):
+    mutable_clac = CLAC(*mutable_layers)
+
+    unique = object()
+    default = object()
+
+    assert mutable_clac.get('new_key', default=default) is default
+    assert mutable_clac.get('new_key', layer_name='beta', default=default) is default
+    mutable_clac.setdefault('new_key', unique)
+    assert mutable_clac.setdefault('new_key', 'acbde') is unique
+    assert mutable_clac.get('new_key', default=default) is unique
+    assert mutable_clac.get('new_key', layer_name='beta', default=default) is unique
+
+
+def test_get_callback(clac_layers):
+    simple_clac = CLAC(*clac_layers)
+
+    assert simple_clac.get('unique', callback=int) == 123456789
+    assert simple_clac.get('missing', default='not a list', callback=list) == 'not a list'
+
+
+def test_no_key():
+    clac = CLAC()
+    with raises(ValueError):
+        _ = clac['']
+
+
+def test_bad_layer():
+    clac = CLAC()
+    clac.remove_layer('none')
+    with raises(MissingLayer):
+        clac.remove_layer('none', error_ok=False)
+
+    with raises(MissingLayer):
+        clac.get('key', layer_name='none')
