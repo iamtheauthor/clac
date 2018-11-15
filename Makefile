@@ -1,20 +1,21 @@
 ifeq ($(OS),Windows_NT)
 	SCRIPT_DIR = Scripts
-	SYS_SHELL = cmd /C
+	EXE_EXT = .exe
 else
 	SCRIPT_DIR = bin
-	SYS_SHELL = bash -c
+	EXE_EXT =
 endif
 
 PROJECT_NAME = clac
 VENV_ROOT = $(WORKON_HOME)/$(PROJECT_NAME)
 VENV_SCRIPTS = $(VENV_ROOT)/$(SCRIPT_DIR)
-VENV_PYTHON = $(VENV_SCRIPTS)/python
-VENV_LINTER = $(VENV_SCRIPTS)/pylint
-VENV_TYPECHKR = $(VENV_SCRIPTS)/mypy
-VENV_PYTEST = $(VENV_SCRIPTS)/pytest
-VENV_SPHINX = $(VENV_SCRIPTS)/sphinx-build
+VENV_PYTHON = $(VENV_SCRIPTS)/python$(EXE_EXT)
+VENV_LINTER = $(VENV_SCRIPTS)/pylint$(EXE_EXT)
+VENV_TYPECHKR = $(VENV_SCRIPTS)/mypy$(EXE_EXT)
+VENV_PYTEST = $(VENV_SCRIPTS)/pytest$(EXE_EXT)
+VENV_SPHINX = $(VENV_SCRIPTS)/sphinx-build$(EXE_EXT)
 VENV_PIP = $(VENV_PYTHON) -m pip
+CLEAN_ARGS = -dxfe "*.egg-info" -e ".idea" -e ".vscode" -e "*.komodoproject" -e ".venv"
 
 install: .venv
 	$(VENV_PIP) install -e .
@@ -29,7 +30,7 @@ unvenv:
 	rm -f .venv
 
 $(VENV_PYTHON):
-	$(SYS_SHELL) "python -m venv $(VENV_ROOT)"
+	python -m venv $(VENV_ROOT)
 	$(VENV_PIP) install --upgrade pip setuptools
 
 $(VENV_LINTER): .venv
@@ -45,7 +46,7 @@ $(VENV_SPHINX): .venv
 	echo $(VENV_PYTHON) > .venv
 
 clean:
-	git clean -dxfe "*.egg-info" -e ".idea" -e ".vscode" -e "*.komodoproject" -e ".venv"
+	git clean $(CLEAN_ARGS)
 
 lint: $(VENV_LINTER)
 	$(VENV_LINTER) $(PROJECT_NAME)
