@@ -10,14 +10,17 @@ Welcome to CLAC!
    welcome.  Different ideas about how to complete or structure the docs would
    be welcome, as well as pull requests toward completing that goal.
 
+   If you would like to contribute to this goal, please see the contribution
+   guidelines here
+
 What is CLAC?
 -------------
 
 CLAC is a multi-level configuration management library for use by applications
 which require multi-source configuration, such as multiple config files (which
-may or may not have priority overriding based on location), environment
-variables, command-line parameters, and default configuration shipped with the
-application itself.
+could have priority overriding based on location), environment variables,
+command-line parameters, and default configuration shipped with the application
+itself.
 
 The theory behind the tool is that the each of the configuration sources is a
 layer, and each layer has a priority against the other layers, e.g.
@@ -31,7 +34,8 @@ value.
    :caption: Contents:
 
    getting-started
-   config
+   api-reference
+   environment-setup
 
 Indices and tables
 ==================
