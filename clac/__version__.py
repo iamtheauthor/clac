@@ -31,8 +31,8 @@ incremented manually.
 `__release__` is the semantic version compatible string in 'X.Y.Z' format.
 """
 
-__major__: int = 0
-__minor__: int = 1
+__major__: int = 1
+__minor__: int = 0
 __patch__: int = 0
 
 __version__ = (__major__, __minor__)
