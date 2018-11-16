@@ -18,6 +18,7 @@ doc_requires = ['sphinx', 'sphinx_rtd_theme']
 test_requires = ['pytest', 'pytest-cov']
 coverage_requires = ['coverage', 'codecov']
 lint_requires = ['pylint', 'mypy']
+pkg_requires = ['twine', 'wheel']
 
 setup(
     name='clac',
@@ -48,6 +49,7 @@ setup(
         'docs': doc_requires,
         'lint': lint_requires,
         'cov': coverage_requires,
+        'pkg': pkg_requires,
     },
     zip_safe=False,
 )

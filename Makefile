@@ -14,6 +14,8 @@ VENV_LINTER = $(VENV_SCRIPTS)/pylint$(EXE_EXT)
 VENV_TYPECHKR = $(VENV_SCRIPTS)/mypy$(EXE_EXT)
 VENV_PYTEST = $(VENV_SCRIPTS)/pytest$(EXE_EXT)
 VENV_SPHINX = $(VENV_SCRIPTS)/sphinx-build$(EXE_EXT)
+VENV_WHEEL = $(VENV_SCRIPTS)/wheel$(EXE_EXT)
+VENV_TWINE = $(VENV_SCRIPTS)/twine$(EXE_EXT)
 VENV_PIP = $(VENV_PYTHON) -m pip
 CLEAN_ARGS = -dxfe "*.egg-info" -e ".idea" -e ".vscode" -e "*.komodoproject" -e ".venv"
 
@@ -34,13 +36,16 @@ $(VENV_PYTHON):
 	$(VENV_PIP) install --upgrade pip setuptools
 
 $(VENV_LINTER): .venv
-	$(VENV_PIP) install -e.[lint]
+	$(VENV_PIP) install -e .[lint]
 
 $(VENV_PYTEST): .venv
-	$(VENV_PIP) install -e.[test,cov]
+	$(VENV_PIP) install -e .[test,cov]
 
 $(VENV_SPHINX): .venv
-	$(VENV_PIP) install -e.[docs]
+	$(VENV_PIP) install -e .[docs]
+
+$(VENV_WHEEL): .venv
+	$(VENV_PIP) install -e .[pkg]
 
 .venv: $(VENV_PYTHON)
 	echo $(VENV_PYTHON) > .venv
@@ -59,4 +64,10 @@ test: $(VENV_PYTEST)
 docs: $(VENV_SPHINX)
 	$(VENV_SPHINX) -M html docs/source docs/build
 
-.PHONY: install unvenv docs test lint clean install-dev
+dist: $(VENV_WHEEL)
+	$(VENV_PYTHON) setup.py sdist bdist_wheel
+
+upload: dist
+	$(VENV_TWINE) upload dist/*
+
+.PHONY: install unvenv docs test lint clean install-dev upload
