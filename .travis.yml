@@ -7,5 +7,6 @@ script:
   - pytest --cov clac tests
   - pylint clac
   - mypy clac
+  - sphinx-build -M html docs/source docs/build
 after_success:
   - codecov
