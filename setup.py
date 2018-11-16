@@ -25,6 +25,7 @@ setup(
     version=vr.__release__,
     description='CLAC Layerizes Application Configuration',
     long_description=__long_description__,
+    long_description_content_type='text/markdown',
     url='https://github.com/scruffystuffs/clac',
     author='Wesley Van Melle',
     author_email='van.melle.wes@gmail.com',
