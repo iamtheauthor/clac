@@ -21,6 +21,6 @@
 """Layer-based application configuration"""
 
 # Exceptions must be imported before core, due to import style
-from clac.exceptions import NoConfigKey, MissingLayer, ImmutableLayer
+from clac.exceptions import NoConfigKey, MissingLayer, ImmutableLayer, LayerOverwriteError
 from clac.core import CLAC, BaseConfigLayer, DictLayer, DictStructure, EnvLayer
 from clac.layers import IniLayer

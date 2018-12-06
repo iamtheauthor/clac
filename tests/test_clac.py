@@ -2,12 +2,12 @@ import pathlib
 # import sys
 from typing import Iterable
 
-from pytest import raises, fixture
+from pytest import raises, fixture, mark
 
 # sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from clac import (  # noqa: E402
-    CLAC, BaseConfigLayer, NoConfigKey, MissingLayer, ImmutableLayer
+    CLAC, BaseConfigLayer, NoConfigKey, MissingLayer, ImmutableLayer, LayerOverwriteError
 )
 
 __here__ = pathlib.Path(__file__).resolve().parent
@@ -128,6 +128,35 @@ def test_remove_layer(clac_layers):
         _ = cfg['beta_secret']
 
 
+def test_insert_layer(clac_layers):
+    alpha, beta, gamma = clac_layers
+    expected_name_list = []
+
+    cfg = CLAC(gamma)
+    expected_name_list.append('gamma')
+    assert list(cfg.layers) == expected_name_list
+
+    cfg.insert_layers(beta)
+    expected_name_list.insert(0, 'beta')
+    assert list(cfg.layers) == expected_name_list
+
+    cfg.insert_layers(beta, alpha)
+    expected_name_list.insert(1, 'alpha')
+    assert list(cfg.layers) == expected_name_list
+
+    fake_beta = SimpleLayer('beta', {})
+    with raises(LayerOverwriteError):
+        cfg.insert_layers(fake_beta)
+
+    cfg.insert_layers(fake_beta, raise_on_replace=False)
+
+    assert cfg.layers == {
+        'beta': fake_beta,
+        'alpha': alpha,
+        'gamma': gamma,
+    }
+
+
 def test_add_layer(clac_layers):
     alpha, beta, _ = clac_layers
     cfg = CLAC(alpha)
@@ -167,6 +196,7 @@ def test_build_lri(clac_layers):
     }
 
 
+@mark.xfail
 def test_build_reverse_lri(clac_layers):
     simple_clac = CLAC(*clac_layers)
     assert simple_clac.build_lri(True) == {
@@ -262,3 +292,9 @@ def test_resolve(clac_layers):
     assert simple_clac.resolve('beta_secret') == ('beta', 'fghij')
     with raises(NoConfigKey):
         simple_clac.resolve('missing.key')
+
+
+def test_layers(clac_layers):
+    simple_clac = CLAC(*clac_layers)
+    expected_lookup = {layer.name: layer for layer in clac_layers}
+    assert simple_clac.layers == expected_lookup

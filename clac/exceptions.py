@@ -18,19 +18,20 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""This module defines exceptions common the CLAC package."""
+"""This module defines exceptions common to the CLAC package."""
 
 
 class NoConfigKey(LookupError):
     """The requested configuration key was not found."""
-    pass
 
 
 class MissingLayer(LookupError):
     """The layer specified was not found."""
-    pass
 
 
 class ImmutableLayer(Exception):
-    """Cannot modify an immutable layer"""
-    pass
+    """Cannot modify an immutable layer."""
+
+
+class LayerOverwriteError(LookupError):
+    """Overwrote a pre-existing layer."""

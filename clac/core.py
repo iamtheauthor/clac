@@ -25,7 +25,7 @@ import enum
 import os
 from typing import Any, Callable, Set, Tuple, Optional, Iterator, Dict
 
-from .exceptions import NoConfigKey, MissingLayer, ImmutableLayer
+from .exceptions import NoConfigKey, MissingLayer, ImmutableLayer, LayerOverwriteError
 
 
 class DictStructure(enum.Enum):
@@ -128,7 +128,6 @@ class BaseConfigLayer(Mapping, metaclass=ABCMeta):
     @abstractmethod
     def names(self):
         """Returns the full list of keys in the Layer"""
-        pass  # pragma: no cover
 
 
 _GET = object()
@@ -404,6 +403,37 @@ class CLAC:
         for layer in layers:
             self._lookup[layer.name] = layer
 
+    def insert_layers(self, *layers: BaseConfigLayer, raise_on_replace=True):
+        """Inserts layers into the start of the lookup.
+
+        If any layer name already exists, it will be inserted in the new
+        position, instead of retaining it's old position.  This can be used to
+        reorder the priority of any or all of the layers.  If a layer name is
+        duplicated in the provided ``layers`` parameter, then the first one is
+        taken, and the others are silently ignored.
+
+        If any layer name conflicts are detected while moving old layers into
+        the rebuilt lookup, :class:`LayerOverwriteError` is raised, and the
+        operation is cancelled, having no effect on the original lookup.  This
+        check is ignored if ``raise_on_replace`` is False (default is True).
+
+        .. warning:: This function will rebuild the internal lookup, which can
+           be expensive if there are a large number of entries.  However,
+           having a large number of configuration sources is an unusual use
+           case, and should not be considered a major performance impact which
+           needs optimization.
+        """
+
+        new_lookup = {}
+        for new_layer in layers:
+            new_lookup.setdefault(new_layer.name, new_layer)
+        for old_layer in self._lookup.values():
+            same = new_lookup.setdefault(old_layer.name, old_layer) is old_layer
+            if raise_on_replace and not same:
+                raise LayerOverwriteError(f'Layer would have been overwritten: {old_layer.name}')
+
+        self._lookup = new_lookup
+
     def remove_layer(self, name: str, error_ok: bool = True):
         """Remove layer ``name`` from the manager.
 
@@ -451,7 +481,7 @@ class CLAC:
             return layer, rv
         raise NoConfigKey(key)
 
-    def build_lri(self, key_first=False) -> Set[Tuple[str, Any]]:
+    def build_lri(self) -> Set[Tuple[str, Any]]:
         """Returns the Layer Resolution Index (LRI)
 
         The LRI is a ``set`` of 2-tuples which contain the first layer that a
@@ -464,17 +494,14 @@ class CLAC:
         name_index: Set[str] = set()
         lri = set()
 
-        def rvsd(tup: Tuple[str, str]) -> Tuple[str, str]:
-            if key_first:
-                tup = (tup[1], tup[0])
-            return tup
-
         while pairs:
             layername, layerset = pairs.pop(0)
             layerset -= name_index
-            lri.update([
-                rvsd((layername, key))
-                for key in layerset
-            ])
+            lri.update([(layername, key) for key in layerset])
             name_index |= layerset
         return lri
+
+    @property
+    def layers(self):
+        """A copy of the internal layer lookup."""
+        return self._lookup.copy()
