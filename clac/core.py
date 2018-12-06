@@ -407,15 +407,18 @@ class CLAC:
         """Inserts layers into the start of the lookup.
 
         If any layer name already exists, it will be inserted in the new
-        position, instead of retaining it's old position.  This can be used to
+        position instead of retaining its old position.  This can be used to
         reorder the priority of any or all of the layers.  If a layer name is
-        duplicated in the provided ``layers`` parameter, then the first one is
-        taken, and the others are silently ignored.
+        duplicated in the provided ``layers`` parameter, then the first value
+        is taken, and the others are silently ignored.
 
         If any layer name conflicts are detected while moving old layers into
-        the rebuilt lookup, :class:`LayerOverwriteError` is raised, and the
-        operation is cancelled, having no effect on the original lookup.  This
-        check is ignored if ``raise_on_replace`` is False (default is True).
+        the rebuilt lookup, the objects are compared for identity.  If the
+        identities match, the new position of the layer is not overwritten with
+        the layer's previous position.  If the identities do not match,
+        :class:`LayerOverwriteError` is raised, and the operation is cancelled,
+        having no effect on the original lookup This check is ignored if
+        ``raise_on_replace`` is False (default is True).
 
         .. warning:: This function will rebuild the internal lookup, which can
            be expensive if there are a large number of entries.  However,
@@ -424,7 +427,7 @@ class CLAC:
            needs optimization.
         """
 
-        new_lookup = {}
+        new_lookup: Dict[str, BaseConfigLayer] = {}
         for new_layer in layers:
             new_lookup.setdefault(new_layer.name, new_layer)
         for old_layer in self._lookup.values():
