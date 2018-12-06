@@ -20,7 +20,7 @@ VENV_SPHINX = $(VENV_SCRIPTS)/sphinx-build$(EXE_EXT)
 VENV_WHEEL = $(VENV_SCRIPTS)/wheel$(EXE_EXT)
 VENV_TWINE = $(VENV_SCRIPTS)/twine$(EXE_EXT)
 VENV_PIP = $(VENV_PYTHON) -m pip
-CLEAN_ARGS = -dxfe "*.egg-info" -e ".idea" -e ".vscode" -e "*.komodoproject" -e ".venv"
+CLEAN_ARGS = -dxe "*.egg-info" -e ".idea" -e ".vscode" -e "*.komodoproject" -e ".venv"
 
 install: .venv
 	$(VENV_PIP) install -e .
@@ -54,7 +54,10 @@ $(VENV_WHEEL): .venv
 	echo $(VENV_PYTHON) > .venv
 
 clean:
-	git clean $(CLEAN_ARGS)
+	git clean -f $(CLEAN_ARGS)
+
+dry-clean:
+	git clean -n $(CLEAN_ARGS)
 
 lint: $(VENV_LINTER)
 	$(VENV_LINTER) $(PROJECT_NAME)
