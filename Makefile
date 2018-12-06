@@ -6,6 +6,9 @@ else
 	EXE_EXT =
 endif
 
+# Force forward slashes in $WORKON_HOME
+WORKON_HOME := $(subst \,/,$(WORKON_HOME))
+
 PROJECT_NAME = clac
 VENV_ROOT = $(WORKON_HOME)/$(PROJECT_NAME)
 VENV_SCRIPTS = $(VENV_ROOT)/$(SCRIPT_DIR)
