@@ -417,7 +417,7 @@ class CLAC:
         identities match, the new position of the layer is not overwritten with
         the layer's previous position.  If the identities do not match,
         :class:`LayerOverwriteError` is raised, and the operation is cancelled,
-        having no effect on the original lookup This check is ignored if
+        having no effect on the original lookup.  This check is ignored if
         ``raise_on_replace`` is False (default is True).
 
         .. warning:: This function will rebuild the internal lookup, which can
