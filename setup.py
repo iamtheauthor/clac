@@ -42,6 +42,7 @@ setup(
     ],
     keywords='configuration environment',
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    package_data={'clac': ['py.typed']},
     python_requires='~=3.6',
     install_requires=[],
     extras_require={
