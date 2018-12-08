@@ -64,7 +64,7 @@ lint: $(VENV_LINTER)
 	$(VENV_TYPECHKR) $(PROJECT_NAME)
 
 test: $(VENV_PYTEST)
-	$(VENV_PYTEST) --cov $(PROJECT_NAME) tests
+	$(VENV_PYTEST) --cov $(PROJECT_NAME) --junitxml result.junit.xml tests
 	$(VENV_PYTHON) -m coverage html
 
 docs: $(VENV_SPHINX)

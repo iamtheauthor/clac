@@ -12,3 +12,4 @@ htmlcov
 .venv
 .mypy_cache
 dist
+result.junit.xml
