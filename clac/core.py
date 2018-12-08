@@ -142,18 +142,10 @@ class DictLayer(BaseConfigLayer):
 
     ``config_dict``
         An optional mapping object which contains the initial state of the
-        configuration layer.  If non-truthy, ``mutable`` must be truthy.  If
-        both are non-truthy, ``ValueError`` is raised.
-
-        .. note:: Any truthy ``config_dict`` parameter will be passed to
-            the ``dict()`` constructor.  This allows for a sequence of
-            key-value pairs to be passed, but may interfere with other mapping
-            types.
+        configuration layer.
 
     ``mutable``
-        A boolean representing whether the layer should allow mutation.  If
-        non-truthy, ``config_dict`` must be truthy.  If both are non-truthy,
-        ``ValueError`` is raised.
+        A boolean representing whether the layer should allow mutation.
 
     ``dot_strategy``
         One of the variants of the :class:`DictStructure` enum. Defaults to
@@ -195,10 +187,9 @@ class DictLayer(BaseConfigLayer):
 
         super().__init__(name, mutable)
         if not config_dict:
-            if not self.mutable:
-                raise ValueError("config_dict cannot be empty for an immutable layer.")
             config_dict = {}
-        assert isinstance(config_dict, (dict, Mapping))
+        if not isinstance(config_dict, (dict, Mapping)):
+            raise TypeError("config object must be a mapping type.")
         self._config_dict = config_dict
 
         if not isinstance(dot_strategy, DictStructure):
@@ -465,7 +456,7 @@ class CLAC:
             nameset.update(layer.names)
         return nameset
 
-    def resolve(self, key: str) -> Tuple[str, Any]:  # noqa
+    def resolve(self, key: str) -> Tuple[str, Any]:
         """Returns that name of the layer accessed, and the value retrieved.
 
         :param key: The key to search for.
@@ -489,9 +480,6 @@ class CLAC:
 
         The LRI is a ``set`` of 2-tuples which contain the first layer that a
         key can be found in, and the key itself.
-
-        If ``key_first`` is True, the tuples will be structured as
-        ``(key, name)``.  Default is False: ``(name, key)``
         """
         pairs = [(l.name, set(l.names)) for l in self._lookup.values()]
         name_index: Set[str] = set()
