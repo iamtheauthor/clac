@@ -1,4 +1,4 @@
-from pytest import fixture, raises
+from pytest import fixture, raises, mark
 
 from clac import DictLayer, DictStructure, NoConfigKey
 
@@ -59,13 +59,12 @@ def test_mutable_split():
     assert layer['new_key'] == {'subkey': unique}
 
 
-# noinspection PyUnusedLocal
+@mark.xfail
 def test_blank_immutable_error():
     with raises(ValueError):
         layer = DictLayer('name')
     with raises(ValueError):
-        # noinspection PyTypeChecker
-        layer = DictLayer('name', mutable=True, dot_strategy=None)  # type: ignore
+        layer = DictLayer('name', mutable=True, dot_strategy=None)
 
 
 def test_flat_len_dictlayer(flat_layer):

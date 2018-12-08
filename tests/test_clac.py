@@ -6,7 +6,7 @@ from pytest import raises, fixture, mark
 
 # sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from clac import (  # noqa: E402
+from clac import (
     CLAC, BaseConfigLayer, NoConfigKey, MissingLayer, ImmutableLayer, LayerOverwriteError
 )
 
