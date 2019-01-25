@@ -21,6 +21,7 @@ VENV_WHEEL = $(VENV_SCRIPTS)/wheel$(EXE_EXT)
 VENV_TWINE = $(VENV_SCRIPTS)/twine$(EXE_EXT)
 VENV_PIP = $(VENV_PYTHON) -m pip
 CLEAN_ARGS = -dxe "*.egg-info" -e ".idea" -e ".vscode" -e "*.komodoproject" -e ".venv"
+PYTEST_ARGS = -W ignore --cov $(PROJECT_NAME) --junitxml result.junit.xml
 
 install: .venv
 	$(VENV_PIP) install -e .
@@ -64,7 +65,7 @@ lint: $(VENV_LINTER)
 	$(VENV_TYPECHKR) $(PROJECT_NAME)
 
 test: $(VENV_PYTEST)
-	$(VENV_PYTEST) --cov $(PROJECT_NAME) --junitxml result.junit.xml tests
+	$(VENV_PYTEST) $(PYTEST_ARGS) tests
 	$(VENV_PYTHON) -m coverage html
 
 docs: $(VENV_SPHINX)

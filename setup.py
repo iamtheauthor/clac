@@ -15,7 +15,7 @@ with codecs.open(path.join(__here__, 'README.md'), encoding='utf-8') as f:
     __long_description__ = f.read()
 
 doc_requires = ['sphinx', 'sphinx_rtd_theme']
-test_requires = ['pytest', 'pytest-cov']
+test_requires = ['pytest>=3.6', 'pytest-cov']
 coverage_requires = ['coverage', 'codecov']
 lint_requires = ['pylint', 'mypy']
 pkg_requires = ['twine', 'wheel']

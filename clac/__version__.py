@@ -32,8 +32,8 @@ incremented manually.
 """
 
 __major__: int = 1
-__minor__: int = 1
-__patch__: int = 1
+__minor__: int = 2
+__patch__: int = 0
 
 __version__ = (__major__, __minor__)
 __release__: str = f'{__major__}.{__minor__}.{__patch__}'

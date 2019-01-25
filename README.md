@@ -10,4 +10,4 @@ CLAC Layerizes Application Configuration
 
 ## Status
 
-Currently being refactored for use in the [pedestal](https://github.com/scruffystuffs/pedestal) framework 
+Released and ready for use.  More docs and examples may be added if needed. 

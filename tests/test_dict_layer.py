@@ -1,4 +1,4 @@
-from pytest import fixture, raises, mark
+from pytest import fixture, raises
 
 from clac import DictLayer, DictStructure, NoConfigKey
 
@@ -30,6 +30,14 @@ def fixture_dotted_dict_layer():
     )
 
 
+def test_init():
+    DictLayer('name')
+    with raises(TypeError):
+        DictLayer('name', 'not a mapping')
+    with raises(ValueError):
+        DictLayer('name', dot_strategy='not a DictStrucure')
+
+
 def test_blank_mutable():
     layer = DictLayer('name', mutable=True)
 
@@ -57,14 +65,6 @@ def test_mutable_split():
     assert layer.setdefault('new_key.subkey', unique) is unique
 
     assert layer['new_key'] == {'subkey': unique}
-
-
-@mark.xfail
-def test_blank_immutable_error():
-    with raises(ValueError):
-        layer = DictLayer('name')
-    with raises(ValueError):
-        layer = DictLayer('name', mutable=True, dot_strategy=None)
 
 
 def test_flat_len_dictlayer(flat_layer):

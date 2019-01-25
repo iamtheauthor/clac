@@ -24,6 +24,7 @@ from collections.abc import Mapping
 import enum
 import os
 from typing import Any, Callable, Set, Tuple, Optional, Iterator, Dict
+from warnings import warn
 
 from .exceptions import NoConfigKey, MissingLayer, ImmutableLayer, LayerOverwriteError
 
@@ -281,12 +282,20 @@ class EnvLayer(DictLayer):
         super().__init__(name, os.environ, False)
         self._separator = sep
         self._prefix = prefix
+        self._hits = set()
 
     def __getitem__(self, key):
+        newkey = key
         if self._prefix:
-            key = f'{self._prefix}.{key}'
-        transkey = key.replace('.', self._separator).upper()
-        return super().__getitem__(transkey)
+            newkey = f'{self._prefix}.{key}'
+        transkey = newkey.replace('.', self._separator).upper()
+        rv = super().__getitem__(transkey)
+        self._hits.add(key)  # only if __getitem__ is successful
+        return rv
+
+    @property
+    def names(self) -> Set[str]:
+        return self._hits.copy()
 
 
 class CLAC:
@@ -475,22 +484,52 @@ class CLAC:
             return layer, rv
         raise NoConfigKey(key)
 
-    def build_lri(self) -> Set[Tuple[str, Any]]:
+    def build_lri(self) -> Set[Tuple[str, str]]:
         """Returns the Layer Resolution Index (LRI)
 
         The LRI is a ``set`` of 2-tuples which contain the first layer that a
         key can be found in, and the key itself.
+
+        .. deprecated:: 1.2
+           Use :meth:`build_nri` or :meth:`build_vri` instead.
+        """
+        warn("LRI has been deprecated in favor of NRI and VRI", DeprecationWarning)
+        return self.build_nri()
+
+    def build_nri(self) -> Set[Tuple[str, str]]:
+        """Returns the Name Resolution Index (NRI)
+
+        The NRI is a ``set`` of 2-tuples which contain the name of the first
+        layer that a key can be found in, and the key itself.
         """
         pairs = [(l.name, set(l.names)) for l in self._lookup.values()]
         name_index: Set[str] = set()
-        lri = set()
+        nri = set()
 
         while pairs:
             layername, layerset = pairs.pop(0)
             layerset -= name_index
-            lri.update([(layername, key) for key in layerset])
+            nri.update([(layername, key) for key in layerset])
             name_index |= layerset
-        return lri
+        return nri
+
+    def build_vri(self) -> Set[Tuple[str, str, Any]]:
+        """Returns the Value Resolution Index (VRI)
+
+        The VRI is a ``set`` of 2-tuples which contain the name of the first
+        layer that a key can be found in, the key itself, and the value that
+        that pair resolves to.
+        """
+        nri = self.build_nri()
+        vri = set()
+        missing = object()
+
+        for layer, key in nri:
+            value = self.get(key, missing, layer)
+            assert value is not missing  # should never occur
+            vri.add((layer, key, value))
+
+        return vri
 
     @property
     def layers(self):
