@@ -2,7 +2,7 @@ import pathlib
 # import sys
 from typing import Iterable
 
-from pytest import raises, fixture, mark
+from pytest import raises, fixture
 
 # sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -196,15 +196,25 @@ def test_build_lri(clac_layers):
     }
 
 
-@mark.xfail
-def test_build_reverse_lri(clac_layers):
+def test_build_nri(clac_layers):
     simple_clac = CLAC(*clac_layers)
-    assert simple_clac.build_lri(True) == {
-        ('test_key', 'alpha'),
-        ('alpha_secret', 'alpha'),
-        ('unique', 'alpha'),
-        ('beta_secret', 'beta'),
-        ('gamma_secret', 'gamma'),
+    assert simple_clac.build_nri() == {
+        ('alpha', 'test_key'),
+        ('alpha', 'alpha_secret'),
+        ('alpha', 'unique'),
+        ('beta', 'beta_secret'),
+        ('gamma', 'gamma_secret'),
+    }
+
+
+def test_build_vri(clac_layers):
+    simple_clac = CLAC(*clac_layers)
+    assert simple_clac.build_vri() == {
+        ('alpha', 'test_key', 'test_value_alpha'),
+        ('alpha', 'alpha_secret', 'abcde'),
+        ('alpha', 'unique', '0123456789'),
+        ('beta', 'beta_secret', 'fghij'),
+        ('gamma', 'gamma_secret', 'gamma rules!'),
     }
 
 
